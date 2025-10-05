@@ -61,12 +61,16 @@ public class Utils {
         }
         String result = format;
 
+        String prefix = PluginManager.getInstance().getPrefix(player);
+        String suffix = PluginManager.getInstance().getSuffix(player);
+        String group = PluginManager.getInstance().getGroupNames(player).length > 0 ? PluginManager.getInstance().getGroupNames(player)[0] : "none";
+
         result = result.replace("%displayname", player.getDisplayName());
-        result = result.replace("%prefix", PluginManager.getInstance().getPrefix(player));
-        result = result.replace("%suffix", PluginManager.getInstance().getSuffix(player));
+        result = result.replace("%prefix", prefix != null ? prefix : "");
+        result = result.replace("%suffix", suffix != null ? suffix : "");
         result = result.replace("%player", player.getName());
         result = result.replace("%world", player.getWorld().getName());
-        result = result.replace("%group", PluginManager.getInstance().getGroupNames(player).length > 0 ? PluginManager.getInstance().getGroupNames(player)[0] : "none");
+        result = result.replace("%group", group != null ? group : "none");
 
         if (HookManager.checkPlaceholderAPI()) {
             LogHelper.debug("PlaceholderAPI is installed! Replacing...");
@@ -104,5 +108,4 @@ public class Utils {
             op.sendMessage(msg);
         }
     }
-
 }

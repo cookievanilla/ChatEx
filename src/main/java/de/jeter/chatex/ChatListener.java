@@ -31,6 +31,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 
+import java.util.List;
 import java.util.UnknownFormatConversionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,7 +83,8 @@ public class ChatListener implements Listener {
     }
 
     private void executeChatEvent(AsyncPlayerChatEvent event) {
-        LogHelper.debug("ChatEvent fired with priority: " + Config.PRIORITY.getString().toUpperCase() + ", ChatEx reacting to it...");
+        if (event.isCancelled()) return;
+
         Player player = event.getPlayer();
 
         if (!player.hasPermission("chatex.allowchat")) {
@@ -93,10 +95,6 @@ public class ChatListener implements Listener {
         }
 
         String format = PluginManager.getInstance().getMessageFormat(event.getPlayer());
-        LogHelper.debug("Format: " + format);
-        LogHelper.debug("Prefix: " + PluginManager.getInstance().getPrefix(event.getPlayer()));
-        LogHelper.debug("Suffix: " + PluginManager.getInstance().getSuffix(event.getPlayer()));
-
         String chatMessage = event.getMessage();
 
         if (!AntiSpamManager.getInstance().isAllowed(event.getPlayer())) {
@@ -104,54 +102,44 @@ public class ChatListener implements Listener {
             String message = Locales.ANTI_SPAM_DENIED.getString(event.getPlayer()).replaceAll("%time%", remainingTime + "");
             MessageBlockedBySpamManagerEvent messageBlockedBySpamManagerEvent = new MessageBlockedBySpamManagerEvent(event.getPlayer(), chatMessage, message, remainingTime);
             Bukkit.getPluginManager().callEvent(messageBlockedBySpamManagerEvent);
-            event.setCancelled(!messageBlockedBySpamManagerEvent.isCancelled());
             if (!messageBlockedBySpamManagerEvent.isCancelled()) {
                 event.getPlayer().sendMessage(messageBlockedBySpamManagerEvent.getPluginMessage());
+                event.setCancelled(true);
                 return;
             }
             chatMessage = messageBlockedBySpamManagerEvent.getMessage();
         }
         AntiSpamManager.getInstance().put(player);
 
-        LogHelper.debug("Player did not activate the AntiSpam. Continuing...");
-
         if (adManager.checkForAds(chatMessage, player)) {
             String message = Locales.MESSAGES_AD.getString(null).replaceAll("%perm", "chatex.bypassads");
             MessageBlockedByAdManagerEvent messageBlockedByAdManagerEvent = new MessageBlockedByAdManagerEvent(player, chatMessage, message);
             Bukkit.getPluginManager().callEvent(messageBlockedByAdManagerEvent);
-            chatMessage = messageBlockedByAdManagerEvent.getMessage();
-            event.setCancelled(!messageBlockedByAdManagerEvent.isCancelled());
             if (!messageBlockedByAdManagerEvent.isCancelled()) {
                 event.getPlayer().sendMessage(messageBlockedByAdManagerEvent.getPluginMessage());
+                event.setCancelled(true);
                 return;
             }
+            chatMessage = messageBlockedByAdManagerEvent.getMessage();
         }
 
-        LogHelper.debug("Player did not activate the AdBlocker. Continuing...");
-
-        for(String block : Config.BLOCKED_WORDS.getStringList()) {
-            if(chatMessage.toLowerCase().contains(block.toLowerCase())) {
-                LogHelper.debug("Player activated wordblocker! ChatMessage: " + chatMessage + " contains blockedWord: " + block);
+        for (String block : Config.BLOCKED_WORDS.getStringList()) {
+            if (chatMessage.toLowerCase().contains(block.toLowerCase())) {
                 String message = Locales.MESSAGES_BLOCKED.getString(null);
                 MessageContainsBlockedWordEvent messageContainsBlockedWordEvent = new MessageContainsBlockedWordEvent(player, chatMessage, message);
                 Bukkit.getPluginManager().callEvent(messageContainsBlockedWordEvent);
-                event.setCancelled(!messageContainsBlockedWordEvent.isCancelled());
-                chatMessage = messageContainsBlockedWordEvent.getMessage();
                 if (!messageContainsBlockedWordEvent.isCancelled()) {
                     event.getPlayer().sendMessage(messageContainsBlockedWordEvent.getPluginMessage());
+                    event.setCancelled(true);
                     return;
                 }
+                chatMessage = messageContainsBlockedWordEvent.getMessage();
             }
         }
 
-        LogHelper.debug("Player did not use a blocked word. Continuing...");
-        LogHelper.debug("ChatMessage: " + chatMessage);
         boolean global = false;
-
         if (Config.RANGEMODE.getBoolean() || Config.BUNGEECORD.getBoolean()) {
-            LogHelper.debug("Message starts with prefix (" + Config.RANGEPREFIX.getString() + "): " + chatMessage.startsWith(Config.RANGEPREFIX.getString()));
             if ((Config.RANGEMODE.getBoolean() && chatMessage.startsWith(Config.RANGEPREFIX.getString())) || Config.BUNGEECORD.getBoolean()) {
-                LogHelper.debug("Global mode enabled!");
                 if (player.hasPermission("chatex.chat.global")) {
                     chatMessage = chatMessage.replaceFirst(Pattern.quote(Config.RANGEPREFIX.getString()), "");
                     format = PluginManager.getInstance().getGlobalMessageFormat(player);
@@ -159,11 +147,11 @@ public class ChatListener implements Listener {
 
                     PlayerUsesGlobalChatEvent playerUsesGlobalChatEvent = new PlayerUsesGlobalChatEvent(player, chatMessage);
                     Bukkit.getPluginManager().callEvent(playerUsesGlobalChatEvent);
-                    chatMessage = playerUsesGlobalChatEvent.getMessage();
                     if (playerUsesGlobalChatEvent.isCancelled()) {
                         event.setCancelled(true);
                         return;
                     }
+                    chatMessage = playerUsesGlobalChatEvent.getMessage();
                 } else {
                     player.sendMessage(Locales.COMMAND_RESULT_NO_PERM.getString(player).replaceAll("%perm", "chatex.chat.global"));
                     event.setCancelled(true);
@@ -171,52 +159,62 @@ public class ChatListener implements Listener {
                 }
             } else {
                 if (Config.RANGEMODE.getBoolean()) {
-                    LogHelper.debug("Range mode enabled!");
-                    event.getRecipients().clear();
-                    if (Utils.getLocalRecipients(player).size() == 1 && Config.SHOW_NO_RECEIVER_MSG.getBoolean()) {
-                        player.sendMessage(Locales.NO_LISTENING_PLAYERS.getString(player));
-                        event.setCancelled(true);
-                        return;
-                    } else {
-                        event.getRecipients().addAll(Utils.getLocalRecipients(player));
+                    event.setCancelled(true);
+                    final String finalChatMessage = chatMessage;
+                    final String finalFormat = format;
 
-                        PlayerUsesRangeModeEvent playerUsesRangeModeEvent = new PlayerUsesRangeModeEvent(player, chatMessage);
-                        Bukkit.getPluginManager().callEvent(playerUsesRangeModeEvent);
-                        chatMessage = playerUsesRangeModeEvent.getMessage();
-                        if (playerUsesRangeModeEvent.isCancelled()) {
-                            event.setCancelled(true);
+                    ChatEx.getFoliaLib().getScheduler().runAtEntity(player, (task) -> {
+                        List<Player> recipients = Utils.getLocalRecipients(player);
+                        if (recipients.size() <= 1 && Config.SHOW_NO_RECEIVER_MSG.getBoolean()) {
+                            player.sendMessage(Locales.NO_LISTENING_PLAYERS.getString(player));
                             return;
                         }
-                    }
+
+                        PlayerUsesRangeModeEvent playerUsesRangeModeEvent = new PlayerUsesRangeModeEvent(player, finalChatMessage);
+                        Bukkit.getPluginManager().callEvent(playerUsesRangeModeEvent);
+                        if (playerUsesRangeModeEvent.isCancelled()) {
+                            return;
+                        }
+                        String messageToSend = playerUsesRangeModeEvent.getMessage();
+
+                        String finalFormattedMessage = Utils.replacePlayerPlaceholders(player, finalFormat);
+                        finalFormattedMessage = Utils.escape(finalFormattedMessage);
+                        finalFormattedMessage = finalFormattedMessage.replace("%%message", "%2$s");
+
+                        try {
+                            String builtMessage = String.format(finalFormattedMessage, player.getDisplayName(), Utils.translateColorCodes(messageToSend, player));
+                            for (Player recipient : recipients) {
+                                recipient.sendMessage(builtMessage);
+                            }
+                            Bukkit.getConsoleSender().sendMessage(builtMessage);
+                            ChatLogger.writeToFile(player, messageToSend);
+                        } catch (UnknownFormatConversionException ex) {
+                            ChatEx.getInstance().getLogger().severe("Placeholder in format is not allowed!");
+                        }
+                    });
+                    return;
                 }
             }
         }
 
         if (global && Config.BUNGEECORD.getBoolean()) {
-            LogHelper.debug("Local mode & Bungeecord mode enabled! Spreading Cross server message...");
             String msgToSend = Utils.replacePlayerPlaceholders(player, format.replaceAll("%message", Matcher.quoteReplacement(chatMessage)));
             ChannelHandler.getInstance().sendMessage(player, msgToSend);
         }
 
-        LogHelper.debug("Replacing Placeholder in format...");
         format = Utils.replacePlayerPlaceholders(player, format);
         format = Utils.escape(format);
         format = format.replace("%%message", "%2$s");
-        LogHelper.debug("Format after replacing: " + format);
-
 
         try {
             event.setFormat(format);
         } catch (UnknownFormatConversionException ex) {
-            System.out.println(format);
             ChatEx.getInstance().getLogger().severe("Placeholder in format is not allowed!");
-            format = format.replaceAll("%\\\\?.*?%", "");
+            format = format.replaceAll("%\\??.*%", "");
             event.setFormat(format);
         }
 
         event.setMessage(Utils.translateColorCodes(chatMessage, player));
         ChatLogger.writeToFile(player, chatMessage);
-        LogHelper.debug("Everything done! Method end.");
     }
-
 }

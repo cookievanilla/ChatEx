@@ -18,6 +18,7 @@
  */
 package de.jeter.chatex;
 
+import com.tcoded.folialib.FoliaLib;
 import de.jeter.chatex.plugins.PluginManager;
 import de.jeter.chatex.utils.*;
 import de.jeter.updatechecker.SpigotUpdateChecker;
@@ -28,15 +29,21 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class ChatEx extends JavaPlugin {
 
     private static ChatEx INSTANCE;
+    private static FoliaLib FOLIA_LIB;
     private UpdateChecker updatechecker = null;
 
     public static ChatEx getInstance() {
         return INSTANCE;
     }
 
+    public static FoliaLib getFoliaLib() {
+        return FOLIA_LIB;
+    }
+
     @Override
     public void onEnable() {
         INSTANCE = this;
+        FOLIA_LIB = new FoliaLib(this);
 
         Config.load();
         Locales.load();
@@ -68,7 +75,9 @@ public class ChatEx extends JavaPlugin {
     public void onDisable() {
         AntiSpamManager.getInstance().clear();
         ChatLogger.close();
-        getServer().getScheduler().cancelTasks(this);
+        if (FOLIA_LIB != null) {
+            FOLIA_LIB.getScheduler().cancelAllTasks();
+        }
         getLogger().info("Is now disabled!");
     }
 

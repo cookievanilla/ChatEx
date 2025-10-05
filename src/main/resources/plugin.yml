@@ -5,6 +5,7 @@ authors: [ Jeter, Wizard_x ]
 description: Chat management plugin
 softdepend: [ LuckPerms, Vault, PlaceholderAPI, Essentials ]
 api-version: 1.13
+folia-supported: true
 
 commands:
   chatex:

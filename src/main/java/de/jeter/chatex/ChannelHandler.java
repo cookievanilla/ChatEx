@@ -53,25 +53,23 @@ public class ChannelHandler implements PluginMessageListener {
         ByteArrayDataInput in = ByteStreams.newDataInput(message);
         String subChannel = in.readUTF();
         if (subChannel.equals("ChatEx")) {
-            //String serverName = in.readUTF();
-
             short len = in.readShort();
             byte[] msgbytes = new byte[len];
             in.readFully(msgbytes);
 
             DataInputStream msgin = new DataInputStream(new ByteArrayInputStream(msgbytes));
             String msg;
-            long millis = 0;
+            long millis;
             try {
                 millis = msgin.readLong();
                 msg = msgin.readUTF();
             } catch (IOException ex) {
                 ex.printStackTrace();
-                msg = "null";
+                return;
             }
 
             if ((System.currentTimeMillis() - millis) < TimeUnit.SECONDS.toMillis(Config.CROSS_SERVER_TIMEOUT.getInt())) {
-                ChatEx.getInstance().getServer().broadcastMessage(msg);
+                ChatEx.getFoliaLib().getScheduler().runNextTick((task) -> ChatEx.getInstance().getServer().broadcastMessage(msg));
             }
         }
     }
@@ -79,10 +77,9 @@ public class ChannelHandler implements PluginMessageListener {
     public void sendMessage(Player p, String message) {
         if (Config.BUNGEECORD.getBoolean()) {
             ByteArrayDataOutput out = ByteStreams.newDataOutput();
-            out.writeUTF("Forward"); // So BungeeCord knows to forward it
+            out.writeUTF("Forward");
             out.writeUTF("ALL");
-            out.writeUTF("ChatEx"); // The channel name to check if this your data
-            //out.writeUTF("GetServer");
+            out.writeUTF("ChatEx");
 
             ByteArrayOutputStream msgbytes = new ByteArrayOutputStream();
             DataOutputStream msgout = new DataOutputStream(msgbytes);
@@ -98,5 +95,4 @@ public class ChannelHandler implements PluginMessageListener {
             p.sendPluginMessage(ChatEx.getInstance(), "BungeeCord", out.toByteArray());
         }
     }
-
 }

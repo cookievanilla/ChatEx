@@ -20,14 +20,14 @@ package de.jeter.chatex.utils;
 
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class AntiSpamManager {
 
     private static final AntiSpamManager instance = new AntiSpamManager();
-    private final Map<Player, Long> map = new HashMap<>();
+    private final Map<Player, Long> map = new ConcurrentHashMap<>();
 
     private AntiSpamManager() {
 

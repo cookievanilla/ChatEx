@@ -21,29 +21,25 @@ package de.jeter.chatex.utils.adManager;
 import de.jeter.chatex.utils.*;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SmartAdManager implements AdManager {
-    private static final Map<UUID, Double> uuidErrorMap = new HashMap<>();
+    private static final Map<UUID, Double> uuidErrorMap = new ConcurrentHashMap<>();
     private static final Pattern ipPattern = Pattern.compile("((?<![0-9])(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[ ]?[.,-:; ][ ]?(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[ ]?[., ][ ]?(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[ ]?[., ][ ]?(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))(?![0-9]))");
     private static final Pattern webPattern = Pattern.compile("((([a-zA-Z0-9_-]{2,256}\\.)*)?[a-zA-Z0-9_-]{2,256}\\.[a-zA-Z_-]{2,256})(\\/[-a-zA-Z0-9@:%_\\\\+~#?&\\/=]*)?");
 
-    //replace any spaces in the range of ADS_MAX_LENGTH near . or , removes () and [] to prevent example(.)com
     private static final String urlCompactorPatternString = "[\\(\\)\\]\\[]|([\\s:\\/](?=.{0," + Config.ADS_MAX_LENGTH.getInt() + "}[\\.]))|((?<=[\\.].{0,4})\\s*)";
 
-    //Ips are clear
     private static boolean checkForIPPattern(String message) {
-
         message = message.replaceAll(" ", "");
         Matcher regexMatcher = ipPattern.matcher(message);
         while (regexMatcher.find()) {
             if (regexMatcher.group().length() != 0) {
                 String text = regexMatcher.group().trim().replaceAll("http://", "").replaceAll("https://", "").split("/")[0];
-
                 if (ipPattern.matcher(text).find()) {
                     if (!Utils.checkForBypassString(regexMatcher.group().trim())) {
                         return true;
@@ -72,7 +68,6 @@ public class SmartAdManager implements AdManager {
                             error *= Config.ADS_SMART_UN_MULTIPLIER.getDouble();
                         }
                     }
-
                 }
             }
             error = error > 0 ? error / messageLength : 0;
@@ -88,11 +83,9 @@ public class SmartAdManager implements AdManager {
         if (!Config.ADS_ENABLED.getBoolean()) {
             return false;
         }
-        if (!uuidErrorMap.containsKey(p.getUniqueId()) || uuidErrorMap.get(p.getUniqueId()) < 0) {
-            uuidErrorMap.put(p.getUniqueId(), 0d);
-        }
+        uuidErrorMap.putIfAbsent(p.getUniqueId(), 0.0);
         double error = checkForWebPattern(msg);
-        uuidErrorMap.put(p.getUniqueId(), uuidErrorMap.get(p.getUniqueId()) + error);
+        uuidErrorMap.compute(p.getUniqueId(), (uuid, currentError) -> (currentError == null ? 0 : currentError) + error);
         boolean canceled = uuidErrorMap.get(p.getUniqueId()) > Config.ADS_THRESHOLD.getDouble() || checkForIPPattern(msg);
         if (canceled) {
             uuidErrorMap.put(p.getUniqueId(), Config.ADS_THRESHOLD.getDouble());
@@ -102,7 +95,10 @@ public class SmartAdManager implements AdManager {
             Utils.notifyOps(message);
             ChatLogger.writeToAdFile(p, msg);
         } else {
-            uuidErrorMap.put(p.getUniqueId(), uuidErrorMap.get(p.getUniqueId()) - Config.ADS_REDUCE_THRESHOLD.getDouble());
+            uuidErrorMap.compute(p.getUniqueId(), (uuid, currentError) -> {
+                double newError = (currentError == null ? 0 : currentError) - Config.ADS_REDUCE_THRESHOLD.getDouble();
+                return Math.max(0, newError);
+            });
         }
         return canceled;
     }
