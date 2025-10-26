@@ -31,7 +31,7 @@ public class PlayerUsesRangeModeEvent extends Event implements Cancellable {
     private boolean canceled = false;
 
     public PlayerUsesRangeModeEvent(Player player, String message) {
-        super(true);
+        super(false);
         this.player = player;
         this.message = message;
     }
