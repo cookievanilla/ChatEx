@@ -36,8 +36,13 @@ public class MessageContainsBlockedWordEvent extends Event implements Cancellabl
      * @param message       the message of the player
      * @param pluginMessage the message which the plugin sends to the player.
      */
+    @Deprecated
     public MessageContainsBlockedWordEvent(Player player, String message, String pluginMessage) {
-        super(true);
+        this(player, message, pluginMessage, !org.bukkit.Bukkit.isPrimaryThread());
+    }
+
+    public MessageContainsBlockedWordEvent(Player player, String message, String pluginMessage, boolean isAsync) {
+        super(isAsync);
         this.player = player;
         this.message = message;
         this.pluginMessage = pluginMessage;

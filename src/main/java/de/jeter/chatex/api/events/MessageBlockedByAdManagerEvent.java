@@ -36,8 +36,13 @@ public class MessageBlockedByAdManagerEvent extends Event implements Cancellable
      * @param message       the message of the player
      * @param pluginMessage the message which the plugin sends to the player.
      */
+    @Deprecated
     public MessageBlockedByAdManagerEvent(Player player, String message, String pluginMessage) {
-        super(true);
+        this(player, message, pluginMessage, !org.bukkit.Bukkit.isPrimaryThread());
+    }
+
+    public MessageBlockedByAdManagerEvent(Player player, String message, String pluginMessage, boolean isAsync) {
+        super(isAsync);
         this.player = player;
         this.message = message;
         this.pluginMessage = pluginMessage;

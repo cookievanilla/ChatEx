@@ -63,7 +63,7 @@ public enum Locales {
         f = new File(localeFolder, Config.LOCALE.getString() + ".yml");
         if (!f.exists()) {
             try {
-                ChatEx.getInstance().saveResource("locales" + File.separator + Config.LOCALE.getString() + ".yml", true);
+                ChatEx.getInstance().saveResource("locales/" + Config.LOCALE.getString() + ".yml", true);
                 File locale = new File(ChatEx.getInstance().getDataFolder(), Config.LOCALE.getString() + ".yml");
                 if (locale.exists()) {
                     locale.delete();

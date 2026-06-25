@@ -12,8 +12,13 @@ public class PlayerUsesGlobalChatEvent extends Event implements Cancellable {
     private String message;
     private boolean canceled = false;
 
+    @Deprecated
     public PlayerUsesGlobalChatEvent(Player player, String message) {
-        super(true);
+        this(player, message, !org.bukkit.Bukkit.isPrimaryThread());
+    }
+
+    public PlayerUsesGlobalChatEvent(Player player, String message, boolean isAsync) {
+        super(isAsync);
         this.player = player;
         this.message = message;
     }

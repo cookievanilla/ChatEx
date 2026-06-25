@@ -1,10 +1,8 @@
 jdk:
-  - openjdk16
+  - openjdk21
 before_install:
-  - echo "Before Install"
-  - bash ensure-java-16 install
+  - sdk install java 21-open
+  - sdk use java 21-open
 install:
-  - echo "Install"
-  - if ! bash ensure-java-16 use; then source ~/.sdkman/bin/sdkman-init.sh; fi
   - java -version
   - mvn install

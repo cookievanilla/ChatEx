@@ -100,7 +100,7 @@ public class ChatListener implements Listener {
         if (!AntiSpamManager.getInstance().isAllowed(event.getPlayer())) {
             long remainingTime = AntiSpamManager.getInstance().getRemainingSeconds(event.getPlayer());
             String message = Locales.ANTI_SPAM_DENIED.getString(event.getPlayer()).replaceAll("%time%", remainingTime + "");
-            MessageBlockedBySpamManagerEvent messageBlockedBySpamManagerEvent = new MessageBlockedBySpamManagerEvent(event.getPlayer(), chatMessage, message, remainingTime);
+            MessageBlockedBySpamManagerEvent messageBlockedBySpamManagerEvent = new MessageBlockedBySpamManagerEvent(event.getPlayer(), chatMessage, message, remainingTime, event.isAsynchronous());
             Bukkit.getPluginManager().callEvent(messageBlockedBySpamManagerEvent);
             if (!messageBlockedBySpamManagerEvent.isCancelled()) {
                 event.getPlayer().sendMessage(messageBlockedBySpamManagerEvent.getPluginMessage());
@@ -113,7 +113,7 @@ public class ChatListener implements Listener {
 
         if (adManager.checkForAds(chatMessage, player)) {
             String message = Locales.MESSAGES_AD.getString(null).replaceAll("%perm", "chatex.bypassads");
-            MessageBlockedByAdManagerEvent messageBlockedByAdManagerEvent = new MessageBlockedByAdManagerEvent(player, chatMessage, message);
+            MessageBlockedByAdManagerEvent messageBlockedByAdManagerEvent = new MessageBlockedByAdManagerEvent(player, chatMessage, message, event.isAsynchronous());
             Bukkit.getPluginManager().callEvent(messageBlockedByAdManagerEvent);
             if (!messageBlockedByAdManagerEvent.isCancelled()) {
                 event.getPlayer().sendMessage(messageBlockedByAdManagerEvent.getPluginMessage());
@@ -126,7 +126,7 @@ public class ChatListener implements Listener {
         for (String block : Config.BLOCKED_WORDS.getStringList()) {
             if (chatMessage.toLowerCase().contains(block.toLowerCase())) {
                 String message = Locales.MESSAGES_BLOCKED.getString(null);
-                MessageContainsBlockedWordEvent messageContainsBlockedWordEvent = new MessageContainsBlockedWordEvent(player, chatMessage, message);
+                MessageContainsBlockedWordEvent messageContainsBlockedWordEvent = new MessageContainsBlockedWordEvent(player, chatMessage, message, event.isAsynchronous());
                 Bukkit.getPluginManager().callEvent(messageContainsBlockedWordEvent);
                 if (!messageContainsBlockedWordEvent.isCancelled()) {
                     event.getPlayer().sendMessage(messageContainsBlockedWordEvent.getPluginMessage());
@@ -145,7 +145,7 @@ public class ChatListener implements Listener {
                     format = PluginManager.getInstance().getGlobalMessageFormat(player);
                     global = true;
 
-                    PlayerUsesGlobalChatEvent playerUsesGlobalChatEvent = new PlayerUsesGlobalChatEvent(player, chatMessage);
+                    PlayerUsesGlobalChatEvent playerUsesGlobalChatEvent = new PlayerUsesGlobalChatEvent(player, chatMessage, event.isAsynchronous());
                     Bukkit.getPluginManager().callEvent(playerUsesGlobalChatEvent);
                     if (playerUsesGlobalChatEvent.isCancelled()) {
                         event.setCancelled(true);

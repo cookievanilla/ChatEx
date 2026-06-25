@@ -78,15 +78,10 @@ public class RGBColors {
     private static boolean isNotSupported() {
         if (supported == null) {
             try {
-                final String version = Bukkit.getVersion();
-                String ver = version.split("\\(MC: ")[1];
-                String[] numbers = ver.replaceAll("\\)", "").split("\\.");
-                ver = numbers[0] + numbers[1];
-                int toCheck = Integer.valueOf(ver);
-                LogHelper.debug(ver + "  INT: " + toCheck);
-                supported = toCheck >= 116;
-            } catch (Exception ex) {
-                ex.printStackTrace();
+                net.md_5.bungee.api.ChatColor.class.getMethod("of", String.class);
+                supported = true;
+            } catch (NoSuchMethodException ex) {
+                supported = false;
             }
         }
         return !supported;

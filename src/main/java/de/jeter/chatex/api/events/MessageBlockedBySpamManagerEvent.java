@@ -38,8 +38,13 @@ public class MessageBlockedBySpamManagerEvent extends Event implements Cancellab
      * @param pluginMessage the message which the plugin sends to the player.
      * @param remaining     the remaining time in seconds.
      */
+    @Deprecated
     public MessageBlockedBySpamManagerEvent(Player player, String message, String pluginMessage, long remaining) {
-        super(true);
+        this(player, message, pluginMessage, remaining, !org.bukkit.Bukkit.isPrimaryThread());
+    }
+
+    public MessageBlockedBySpamManagerEvent(Player player, String message, String pluginMessage, long remaining, boolean isAsync) {
+        super(isAsync);
         this.player = player;
         this.message = message;
         this.pluginMessage = pluginMessage;
