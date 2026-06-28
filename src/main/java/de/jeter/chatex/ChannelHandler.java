@@ -69,7 +69,7 @@ public class ChannelHandler implements PluginMessageListener {
             }
 
             if ((System.currentTimeMillis() - millis) < TimeUnit.SECONDS.toMillis(Config.CROSS_SERVER_TIMEOUT.getInt())) {
-                ChatEx.getFoliaLib().getScheduler().runNextTick((task) -> ChatEx.getInstance().getServer().broadcastMessage(msg));
+                ChatEx.getFoliaLib().getScheduler().runNextTick((task) -> ChatEx.getInstance().getServer().broadcast(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(msg)));
             }
         }
     }

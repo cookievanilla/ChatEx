@@ -24,15 +24,16 @@ import de.jeter.chatex.utils.*;
 import de.jeter.chatex.utils.adManager.AdManager;
 import de.jeter.chatex.utils.adManager.SimpleAdManager;
 import de.jeter.chatex.utils.adManager.SmartAdManager;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 
 import java.util.List;
-import java.util.UnknownFormatConversionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,48 +42,48 @@ public class ChatListener implements Listener {
     private final AdManager adManager = Config.ADS_SMART_MANAGER.getBoolean() ? new SmartAdManager() : new SimpleAdManager();
 
     @EventHandler(priority = EventPriority.LOWEST)
-    public void onLowest(final AsyncPlayerChatEvent event) {
+    public void onLowest(final AsyncChatEvent event) {
         if (Config.PRIORITY.getString().equalsIgnoreCase("LOWEST")) {
             executeChatEvent(event);
         }
     }
 
     @EventHandler(priority = EventPriority.LOW)
-    public void onLow(final AsyncPlayerChatEvent event) {
+    public void onLow(final AsyncChatEvent event) {
         if (Config.PRIORITY.getString().equalsIgnoreCase("LOW")) {
             executeChatEvent(event);
         }
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
-    public void onNormal(final AsyncPlayerChatEvent event) {
+    public void onNormal(final AsyncChatEvent event) {
         if (Config.PRIORITY.getString().equalsIgnoreCase("NORMAL")) {
             executeChatEvent(event);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
-    public void onHigh(final AsyncPlayerChatEvent event) {
+    public void onHigh(final AsyncChatEvent event) {
         if (Config.PRIORITY.getString().equalsIgnoreCase("HIGH")) {
             executeChatEvent(event);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onHighest(final AsyncPlayerChatEvent event) {
+    public void onHighest(final AsyncChatEvent event) {
         if (Config.PRIORITY.getString().equalsIgnoreCase("HIGHEST")) {
             executeChatEvent(event);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onMonitor(final AsyncPlayerChatEvent event) {
+    public void onMonitor(final AsyncChatEvent event) {
         if (Config.PRIORITY.getString().equalsIgnoreCase("MONITOR")) {
             executeChatEvent(event);
         }
     }
 
-    private void executeChatEvent(AsyncPlayerChatEvent event) {
+    private void executeChatEvent(AsyncChatEvent event) {
         if (event.isCancelled()) return;
 
         Player player = event.getPlayer();
@@ -95,7 +96,7 @@ public class ChatListener implements Listener {
         }
 
         String format = PluginManager.getInstance().getMessageFormat(event.getPlayer());
-        String chatMessage = event.getMessage();
+        String chatMessage = PlainTextComponentSerializer.plainText().serialize(event.message());
 
         if (!AntiSpamManager.getInstance().isAllowed(event.getPlayer())) {
             long remainingTime = AntiSpamManager.getInstance().getRemainingSeconds(event.getPlayer());
@@ -138,11 +139,14 @@ public class ChatListener implements Listener {
         }
 
         boolean global = false;
+        String finalFormat = format;
+        String finalChatMessage = chatMessage;
+
         if (Config.RANGEMODE.getBoolean() || Config.BUNGEECORD.getBoolean()) {
             if ((Config.RANGEMODE.getBoolean() && chatMessage.startsWith(Config.RANGEPREFIX.getString())) || Config.BUNGEECORD.getBoolean()) {
                 if (player.hasPermission("chatex.chat.global")) {
                     chatMessage = chatMessage.replaceFirst(Pattern.quote(Config.RANGEPREFIX.getString()), "");
-                    format = PluginManager.getInstance().getGlobalMessageFormat(player);
+                    finalFormat = PluginManager.getInstance().getGlobalMessageFormat(player);
                     global = true;
 
                     PlayerUsesGlobalChatEvent playerUsesGlobalChatEvent = new PlayerUsesGlobalChatEvent(player, chatMessage, event.isAsynchronous());
@@ -152,6 +156,7 @@ public class ChatListener implements Listener {
                         return;
                     }
                     chatMessage = playerUsesGlobalChatEvent.getMessage();
+                    finalChatMessage = chatMessage;
                 } else {
                     player.sendMessage(Locales.COMMAND_RESULT_NO_PERM.getString(player).replaceAll("%perm", "chatex.chat.global"));
                     event.setCancelled(true);
@@ -160,8 +165,8 @@ public class ChatListener implements Listener {
             } else {
                 if (Config.RANGEMODE.getBoolean()) {
                     event.setCancelled(true);
-                    final String finalChatMessage = chatMessage;
-                    final String finalFormat = format;
+                    String rangeMessage = chatMessage;
+                    String rangeFormat = format;
 
                     ChatEx.getFoliaLib().getScheduler().runAtEntity(player, (task) -> {
                         List<Player> recipients = Utils.getLocalRecipients(player);
@@ -170,27 +175,20 @@ public class ChatListener implements Listener {
                             return;
                         }
 
-                        PlayerUsesRangeModeEvent playerUsesRangeModeEvent = new PlayerUsesRangeModeEvent(player, finalChatMessage);
+                        PlayerUsesRangeModeEvent playerUsesRangeModeEvent = new PlayerUsesRangeModeEvent(player, rangeMessage);
                         Bukkit.getPluginManager().callEvent(playerUsesRangeModeEvent);
                         if (playerUsesRangeModeEvent.isCancelled()) {
                             return;
                         }
                         String messageToSend = playerUsesRangeModeEvent.getMessage();
 
-                        String finalFormattedMessage = Utils.replacePlayerPlaceholders(player, finalFormat);
-                        finalFormattedMessage = Utils.escape(finalFormattedMessage);
-                        finalFormattedMessage = finalFormattedMessage.replace("%%message", "%2$s");
-
-                        try {
-                            String builtMessage = String.format(finalFormattedMessage, player.getDisplayName(), Utils.translateColorCodes(messageToSend, player));
-                            for (Player recipient : recipients) {
-                                recipient.sendMessage(builtMessage);
-                            }
-                            Bukkit.getConsoleSender().sendMessage(builtMessage);
-                            ChatLogger.writeToFile(player, messageToSend);
-                        } catch (UnknownFormatConversionException ex) {
-                            ChatEx.getInstance().getLogger().severe("Placeholder in format is not allowed!");
+                        Component builtMessage = Utils.formatMessageToComponent(player, rangeFormat, Utils.parsePlayerMessage(messageToSend, player));
+                        
+                        for (Player recipient : recipients) {
+                            recipient.sendMessage(builtMessage);
                         }
+                        Bukkit.getConsoleSender().sendMessage(builtMessage);
+                        ChatLogger.writeToFile(player, messageToSend);
                     });
                     return;
                 }
@@ -198,23 +196,18 @@ public class ChatListener implements Listener {
         }
 
         if (global && Config.BUNGEECORD.getBoolean()) {
-            String msgToSend = Utils.replacePlayerPlaceholders(player, format.replaceAll("%message", Matcher.quoteReplacement(chatMessage)));
+            Component toSend = Utils.formatMessageToComponent(player, finalFormat, Utils.parsePlayerMessage(finalChatMessage, player));
+            String msgToSend = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(toSend);
             ChannelHandler.getInstance().sendMessage(player, msgToSend);
         }
 
-        format = Utils.replacePlayerPlaceholders(player, format);
-        format = Utils.escape(format);
-        format = format.replace("%%message", "%2$s");
+        String rendererFormat = finalFormat;
+        String rendererMessage = finalChatMessage;
+        
+        event.renderer((source, sourceDisplayName, message, viewer) -> {
+            return Utils.formatMessageToComponent(player, rendererFormat, Utils.parsePlayerMessage(rendererMessage, player));
+        });
 
-        try {
-            event.setFormat(format);
-        } catch (UnknownFormatConversionException ex) {
-            ChatEx.getInstance().getLogger().severe("Placeholder in format is not allowed!");
-            format = format.replaceAll("%\\??.*%", "");
-            event.setFormat(format);
-        }
-
-        event.setMessage(Utils.translateColorCodes(chatMessage, player));
         ChatLogger.writeToFile(player, chatMessage);
     }
 }
